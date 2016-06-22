@@ -28,162 +28,110 @@ namespace {
 
 struct TreeNode {
   typedef std::list<TreeNode*> Children;
-  explicit TreeNode(const Expression* expression) : expression_(expression) {}
+  explicit TreeNode(const Expression* expression) : expression(expression) {}
 
-  const Expression* expression_;
-  Children children_;  // Should be stored sorted by position.
+  const Expression* expression;
+  Children children;  // Should be stored sorted by position.
 };
 
 typedef std::vector<std::shared_ptr<TreeNode>> Tree;
 
-// TODO(user) immediate_float are rendered as hex and aren't properly
-//     checked for their sign.
+// TODO(user): immediate_float are rendered as hex and aren't properly
+//                 checked for their sign.
 void RenderExpression(std::ostream* stream, const TreeNode& node,
-                      bool prefix_type, int substitution_id,
-                      const std::string& substitution) {
-  const Expression* expression = node.expression_;
-  if (expression->GetId() == substitution_id) {
+                      int substitution_id, const std::string& substitution) {
+  const auto& expression = *CHECK_NOTNULL(node.expression);
+  if (expression.GetId() == substitution_id) {
     *stream << substitution;
     return;
   }
-  int8_t expression_type = expression->GetType();
+  int8_t expression_type = expression.GetType();
+  std::string expression_symbol = expression.GetSymbol();
   switch (expression_type) {
     case Expression::TYPE_SIZEPREFIX: {
-      if ((expression->GetSymbol() != "b4" &&
-           Instruction::GetBitness() == 32) ||
-          (expression->GetSymbol() != "b8" &&
-           Instruction::GetBitness() == 64)) {
-        if (prefix_type) {
-          stream->write(reinterpret_cast<const char*>(&expression_type),
-                        sizeof(expression_type));
-        }
-        *stream << expression->GetSymbol() << " ";
+      if ((expression_symbol != "b4" && Instruction::GetBitness() == 32) ||
+          (expression_symbol != "b8" && Instruction::GetBitness() == 64)) {
+        *stream << expression_symbol << " ";
       }
-      for (auto child : node.children_) {
-        RenderExpression(stream, *child, prefix_type, substitution_id,
-                         substitution);
+      for (auto* child : node.children) {
+        RenderExpression(stream, *child, substitution_id, substitution);
       }
       break;
     }
     case Expression::TYPE_REGISTER:
     case Expression::TYPE_SYMBOL: {
-      if (prefix_type) {
-        stream->write(reinterpret_cast<const char*>(&expression_type),
-                      sizeof(expression_type));
-      }
-      *stream << expression->GetSymbol();
+      *stream << expression_symbol;
       break;
     }
     case Expression::TYPE_OPERATOR: {
-      if (node.children_.size() > 1 && expression->GetSymbol() != "{") {
-        for (auto it = node.children_.begin(), end = node.children_.end();
+      if (node.children.size() > 1 && expression_symbol != "{") {
+        for (auto it = node.children.begin(), end = node.children.end();
              it != end; ++it) {
-          RenderExpression(stream, **it, prefix_type, substitution_id,
-                           substitution);
+          RenderExpression(stream, **it, substitution_id, substitution);
           TreeNode::Children::const_iterator j = it;
-          if (++j != node.children_.end()) {
-            if (prefix_type) {
-              stream->write(reinterpret_cast<const char*>(&expression_type),
-                            sizeof(expression_type));
-            }
-            if (expression->GetSymbol() == "+" &&
-                (*j)->expression_->IsImmediate()) {
+          if (++j != node.children.end()) {
+            if (expression_symbol == "+" && (*j)->expression->IsImmediate()) {
               if (Instruction::IsNegativeValue(
-                      (*j)->expression_->GetImmediate()) &&
-                  (*j)->expression_->GetSymbol().empty()) {
+                      (*j)->expression->GetImmediate()) &&
+                  (*j)->expression->GetSymbol().empty()) {
                 // Don't render anything or we'll get: eax+-12
-              } else if ((*j)->expression_->GetImmediate() == 0) {
+              } else if ((*j)->expression->GetImmediate() == 0) {
                 // Skip "+0".
                 it = j;
                 continue;
               } else {
-                *stream << expression->GetSymbol();
+                *stream << expression_symbol;
               }
             } else {
-              *stream << expression->GetSymbol();
+              *stream << expression_symbol;
             }
           }
         }
-      } else if (expression->GetSymbol() == "{") {
-        if (prefix_type) {
-          stream->write(reinterpret_cast<const char*>(&expression_type),
-                        sizeof(expression_type));
-        }
+      } else if (expression_symbol == "{") {
         *stream << "{";
-        for (auto it = node.children_.begin(), end = node.children_.end();
+        for (auto it = node.children.begin(), end = node.children.end();
              it != end; ++it) {
-          RenderExpression(stream, **it, prefix_type, substitution_id,
-                           substitution);
+          RenderExpression(stream, **it, substitution_id, substitution);
           TreeNode::Children::const_iterator j = it;
-          if (++j != node.children_.end()) {
-            if (prefix_type) {
-              stream->write(reinterpret_cast<const char*>(&expression_type),
-                            sizeof(expression_type));
-            }
+          if (++j != node.children.end()) {
             *stream << ",";
           }
         }
-        if (prefix_type) {
-          stream->write(reinterpret_cast<const char*>(&expression_type),
-                        sizeof(expression_type));
-        }
         *stream << "}";
       } else {
-        if (prefix_type) {
-          stream->write(reinterpret_cast<const char*>(&expression_type),
-                        sizeof(expression_type));
-        }
-        *stream << expression->GetSymbol();
-        for (auto child : node.children_) {
-          RenderExpression(stream, *child, prefix_type, substitution_id,
-                           substitution);
+        *stream << expression_symbol;
+        for (auto child : node.children) {
+          RenderExpression(stream, *child, substitution_id, substitution);
         }
       }
       break;
     }
     case Expression::TYPE_DEREFERENCE: {
-      if (prefix_type) {
-        stream->write(reinterpret_cast<const char*>(&expression_type),
-                      sizeof(expression_type));
-      }
       *stream << "[";
-      for (auto child : node.children_) {
-        RenderExpression(stream, *child, prefix_type, substitution_id,
-                         substitution);
-      }
-      if (prefix_type) {
-        stream->write(reinterpret_cast<const char*>(&expression_type),
-                      sizeof(expression_type));
+      for (auto child : node.children) {
+        RenderExpression(stream, *child, substitution_id, substitution);
       }
       *stream << "]";
       break;
     }
     case Expression::TYPE_IMMEDIATE_INT:
     case Expression::TYPE_IMMEDIATE_FLOAT: {
-      if (expression->GetSymbol().empty()) {
-        if (prefix_type) {
-          stream->write(reinterpret_cast<const char*>(&expression_type),
-                        sizeof(expression_type));
-        }
-        if ((Instruction::IsNegativeValue(expression->GetImmediate()) &&
-             expression->GetParent() &&
-             expression->GetParent()->GetSymbol() == "+") ||
-            expression->GetImmediate() <= 9) {
+      if (expression_symbol.empty()) {
+        int64_t expression_immediate = expression.GetImmediate();
+        if ((Instruction::IsNegativeValue(expression_immediate) &&
+             expression.GetParent() &&
+             expression.GetParent()->GetSymbol() == "+") ||
+            expression.GetImmediate() <= 9) {
           *stream << std::dec << std::setw(0)
                   << (Instruction::GetBitness() == 32
-                          ? static_cast<int32_t>(expression->GetImmediate())
-                          : static_cast<int64_t>(expression->GetImmediate()));
+                          ? static_cast<int32_t>(expression_immediate)
+                          : expression_immediate);
         } else {
-          *stream << "0x" << std::hex << std::uppercase
-                  << (Address)expression->GetImmediate();
+          *stream << "0x" << std::hex << std::uppercase << expression_immediate;
         }
       } else {
         // Output the expression substitution instead of the actual value.
-        if (prefix_type) {
-          stream->write(reinterpret_cast<const char*>(&expression_type),
-                        sizeof(expression_type));
-        }
-        *stream << expression->GetSymbol();
+        *stream << expression_symbol;
       }
       break;
     }
@@ -191,17 +139,15 @@ void RenderExpression(std::ostream* stream, const TreeNode& node,
     case Expression::TYPE_JUMPLABEL:
     case Expression::TYPE_STACKVARIABLE:
     case Expression::TYPE_FUNCTION: {
-      if (prefix_type) {
-        stream->write(reinterpret_cast<const char*>(&expression_type),
-                      sizeof(expression_type));
-      }
-      *stream << expression->GetSymbol();
+      *stream << expression_symbol;
       break;
     }
-    default:
-      *stream << "Unknown expression type in RenderExpression.";
-      LOG(INFO) << "Unknown expression type in RenderExpression.";
+    default: {
+      std::string error("Unknown expression type in RenderExpression.");
+      *stream << error;
+      LOG(INFO) << error;
       break;
+    }
   }
 }
 
@@ -229,7 +175,7 @@ FlowGraph::Substitutions::const_iterator GetSubstitution(
 }  // namespace
 
 std::string RenderOperands(const Instruction& instruction,
-                           const FlowGraph& flow_graph, bool prefix_type) {
+                           const FlowGraph& flow_graph) {
   if (!instruction.GetOperandCount()) {
     return "";
   }
@@ -244,20 +190,14 @@ std::string RenderOperands(const Instruction& instruction,
 
   Tree tree;
   std::stringstream stream;
-  int operand_num = 0;
-  for (auto instruction_it = instruction.GetFirstOperand(),
-            instruction_end = instruction.GetLastOperand();
-       instruction_it != instruction_end; ++operand_num) {
-    const Operand& operand = **instruction_it;
-    for (auto expr_it = operand.GetFirstExpression(),
-              expr_end = operand.GetLastExpression();
-         expr_it != expr_end; ++expr_it) {
-      const Expression* expression = *expr_it;
+  int operand_index = 0;
+  for (const auto* operand : instruction) {
+    for (const auto* expression : *operand) {
       tree.emplace_back(std::make_shared<TreeNode>(expression));
       for (auto it = tree.rbegin(), tree_end = tree.rend(); it != tree_end;
            ++it) {
-        if ((*it)->expression_ == expression->GetParent()) {
-          (*it)->children_.push_back(&**tree.rbegin());
+        if ((*it)->expression == expression->GetParent()) {
+          (*it)->children.push_back(&**tree.rbegin());
           break;
         }
       }
@@ -267,36 +207,16 @@ std::string RenderOperands(const Instruction& instruction,
       std::string substitution;
       int expression_id = 0;
       subst_it =
-          GetSubstitution(instruction.GetAddress(), operand_num, subst_it,
+          GetSubstitution(instruction.GetAddress(), operand_index, subst_it,
                           subst_end, &substitution, &expression_id);
-      if (!substitution.empty()) {
-        // TODO(user): Stupid hack: There can only be substitutions for
-        //                 local and global structures and only local structs
-        //                 will ever contain "+".
-        if (prefix_type) {
-          const auto expression_type =
-              static_cast<uint8_t>(substitution.find("+") != std::string::npos
-                                       ? Expression::TYPE_STACKVARIABLE
-                                       : Expression::TYPE_GLOBALVARIABLE);
-          substitution =
-              std::string(reinterpret_cast<const char*>(&expression_type),
-                          sizeof(expression_type)) +
-              substitution;
-        }
-      }
-      RenderExpression(&stream, **tree.begin(), prefix_type, expression_id,
-                       substitution);
+      RenderExpression(&stream, **tree.begin(), expression_id, substitution);
     }
     tree.clear();
 
-    if (++instruction_it != instruction_end) {
-      if (prefix_type) {
-        const uint8_t expression_type = Expression::TYPE_NEWOPERAND;
-        stream.write(reinterpret_cast<const char*>(&expression_type),
-                     sizeof(expression_type));
-      }
+    if (operand_index != instruction.GetOperandCount() - 1) {
       stream << ", ";
     }
+    ++operand_index;
   }
   return stream.str();
 }
@@ -385,7 +305,7 @@ Instruction::Instruction(Address address, Address next_instruction,
   }
 }
 
-const Instruction& Instruction::operator=(const Instruction& one) {
+Instruction& Instruction::operator=(const Instruction& one) {
   mnemonic_ = one.mnemonic_;
   address_ = one.address_;
   operand_index_ = one.operand_index_;
@@ -426,10 +346,10 @@ void Instruction::SetVirtualMemory(AddressSpace* virtual_memory) {
   virtual_memory_ = virtual_memory;
 }
 
-void Instruction::Render(std::ostream* stream, const FlowGraph& flow_graph,
-                         bool prefix_type) const {
+void Instruction::Render(std::ostream* stream,
+                         const FlowGraph& flow_graph) const {
   *stream << GetMnemonic() << " ";
-  *stream << RenderOperands(*this, flow_graph, prefix_type);
+  *stream << RenderOperands(*this, flow_graph);
 }
 
 Address Instruction::GetAddress() const { return address_; }
@@ -487,12 +407,20 @@ void Instruction::AddInEdge() {
 
 uint8_t Instruction::GetOperandCount() const { return operand_count_; }
 
-Operands::const_iterator Instruction::GetFirstOperand() const {
+Operands::const_iterator Instruction::cbegin() const {
   return operands_.begin() + operand_index_;
 }
 
-Operands::const_iterator Instruction::GetLastOperand() const {
-  return GetFirstOperand() + GetOperandCount();
+Operands::const_iterator Instruction::cend() const {
+  return begin() + GetOperandCount();
+}
+
+Operands::iterator Instruction::begin() const {
+  return operands_.begin() + operand_index_;
+}
+
+Operands::iterator Instruction::end() const {
+  return begin() + GetOperandCount();
 }
 
 const Operand& Instruction::GetOperand(int index) const {

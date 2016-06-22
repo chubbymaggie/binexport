@@ -77,7 +77,7 @@ class Instruction {
   explicit Instruction(Address address, Address next_instruction = 0,
                        uint16_t size = 0, const std::string& mnemonic = "",
                        const Operands& operands = Operands());
-  const Instruction& operator=(const Instruction&);
+  Instruction& operator=(const Instruction&);
   Instruction(const Instruction&);
   ~Instruction();
 
@@ -90,8 +90,10 @@ class Instruction {
   static bool IsNegativeValue(int64_t value);
 
   uint8_t GetOperandCount() const;
-  Operands::const_iterator GetFirstOperand() const;
-  Operands::const_iterator GetLastOperand() const;
+  Operands::iterator begin() const;
+  Operands::iterator end() const;
+  Operands::const_iterator cbegin() const;
+  Operands::const_iterator cend() const;
   const Operand& GetOperand(int operand_number) const;
   Address GetAddress() const;
   int GetSize() const;
@@ -101,8 +103,7 @@ class Instruction {
   std::string GetBytes() const;
   uint16_t GetInDegree() const;
   void AddInEdge();
-  void Render(std::ostream* stream, const FlowGraph& flow_graph,
-              bool prefix_type = false) const;
+  void Render(std::ostream* stream, const FlowGraph& flow_graph) const;
 
   bool IsFlow() const;
   bool IsExported() const;
@@ -148,6 +149,6 @@ Instructions::iterator GetInstruction(detego::Instructions* instructions,
 Instructions::iterator GetNextInstruction(detego::Instructions* instructions,
                                           Instructions::iterator instruction);
 std::string RenderOperands(const Instruction& instruction,
-                           const FlowGraph& flow_graph, bool prefix_type);
+                           const FlowGraph& flow_graph);
 
 #endif  // THIRD_PARTY_ZYNAMICS_BINEXPORT_INSTRUCTION_H_

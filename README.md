@@ -1,4 +1,4 @@
-# BinExport
+# BinExport [![Build Status](https://api.travis-ci.org/google/binexport.svg?branch=master)](https://travis-ci.org/google/binexport) [![Coverity Scan Build Status](https://scan.coverity.com/projects/8977/badge.svg)](https://scan.coverity.com/projects/google-binexport)
 
 Copyright 2011-2016 Google Inc.
 
@@ -98,6 +98,8 @@ Option                           | Description
 `-OExporterLogFile:<FILE>`       | Log messages to a file
 `-OExporterAlsoLogToStdErr:TRUE` | If specified, also log to standard error
 
+Note that these options must come before any files.
+
 ## How to build
 
 ### Preparing the build environment
@@ -157,7 +159,7 @@ Configure and build 32-bit static libraries of OpenSSL:
     make -s -j$(nproc)
     cd ../..
 
-#### Using the distribution packages of OpenSSL
+##### Using the distribution packages of OpenSSL
 
 You may skip the above and install the `libssl-dev:i386` package. If you do
 that, you also need to adjust the paths of the OpenSSL libraries when
@@ -192,7 +194,7 @@ With all prerequisites in place, configure and build BinExport:
         -DOPENSSL_ROOT_DIR=${PWD}/third_party/openssl
     make
 
-Note: If you chose use the distribution packages of OpenSSL, add the
+Note: If you chose to use the distribution packages of OpenSSL, add the
 additional flags mentioned above.
 
 If all went well, the source tree should contain two IDA plugin binaries

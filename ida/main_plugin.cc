@@ -41,7 +41,7 @@
 #include "third_party/zynamics/binexport/ida/names.h"
 #include "third_party/zynamics/binexport/instruction.h"
 #include "third_party/zynamics/binexport/statistics_writer.h"
-#include "third_party/zynamics/binexport/version.h"
+#include <version.h>  // NOLINT
 #include "third_party/zynamics/binexport/virtual_memory.h"
 
 std::string GetArgument(const char* name) {
@@ -91,21 +91,19 @@ std::string GetDataForHash() {
 }
 
 std::string GetDefaultName(ExportMode mode) {
+  std::string new_extension;
   switch (mode) {
-    case ExportMode::kDatabase: {
-      return ReplaceFileExtension(GetModuleName(), "");
-    }
-    case ExportMode::kBinary: {
-      return ReplaceFileExtension(database_idb, ".BinExport");
-    }
-    case ExportMode::kText: {
-      return ReplaceFileExtension(database_idb, ".dump");
-    }
-    case ExportMode::kStatistics: {
-      return ReplaceFileExtension(database_idb, ".statistics");
-    }
+    case ExportMode::kBinary:
+      new_extension = ".BinExport";
+      break;
+    case ExportMode::kText:
+      new_extension = ".dump";
+      break;
+    case ExportMode::kStatistics:
+      new_extension = ".statistics";
+      break;
   }
-  return "";
+  return ReplaceFileExtension(GetModuleName(), new_extension);
 }
 
 void ExportDatabase(ChainWriter& writer) {
